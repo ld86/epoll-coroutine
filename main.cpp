@@ -27,9 +27,7 @@ class TCoroutine {
   static void Wrapper(intptr_t pointer) {
     TCoroutine* coroutine = reinterpret_cast<TCoroutine*>(pointer);
     coroutine->Started = true;
-    std::cout << "Start" << std::endl;
     coroutine->Function();
-    std::cout << "End" << std::endl;
     coroutine->Started = false;
     coroutine->Yield();
   }
@@ -87,5 +85,8 @@ public:
 int main() {
   TLazyPrinter p{"P1", "P2"};
   TLazyPrinter n{"N1", "N2"};
+  for (size_t i = 0; i < 3; ++i) {
+    p(); n();
+  }
   return 0;
 }
