@@ -3,51 +3,55 @@
 #include "coroutine_stuff.h"
 #include "io_stuff.h"
 
-void SetSocketToNonBlocking(int socket) {
+void SetToNonBlocking(int socket) {
   int flags; 
   assert((flags = fcntl(socket, F_GETFL, 0)) >= 0);
   assert(fcntl(socket, F_SETFL, flags | O_NONBLOCK) >= 0) ;
 }
 
+template<typename T>
+  void Go(T&& t) {
+    TCoroutine coroutine(t);
+    coroutine.Go();
+  }
+
 class TAsyncAcceptor {
-  TAcceptor SyncAcceptor;
+  TAcceptor Acceptor;
 public:
   TAsyncAcceptor(int port)
-  : SyncAcceptor(port) {
-    SetSocketToNonBlocking(SyncAcceptor.GetSocket());
+  : Acceptor(port) {
+    SetToNonBlocking(Acceptor.GetSocket());
+  }
+
+  int GetSocket() const {
+    return Acceptor.GetSocket();
   }
 
   TSocket Accept() {
-    for (;;) {
-      try {
-        return SyncAcceptor.Accept();
-      } catch (const TWouldBlockException&) {
-        Yield();
-      }
+    try {
+      return Acceptor.Accept();
+    } catch(const TWouldBlockException&) {
+      Yield();
+      return Acceptor.Accept();
     }
   }
 };
-
-class THandler {
-  int Port;
-public:
-  THandler(int port) 
-    : Port(port) {
-    }
-
-  void operator()() {
-    TAsyncAcceptor acceptor(Port);
-    TSocket socket = acceptor.Accept();
-  }
-};
-
-template<typename T>
-  void Go(T& t) {
-    t.Go();
-  }
 
 int main() {
-  THandler handler(12345);
-  TCoroutine coroutine(handler);
-  Go(coroutine);
+  TEpoll epoll;
+  TCoroutine coroutine([&epoll](TCoroutine* me) {
+    TAsyncAcceptor acceptor(1234);
+    TCallback callback([me]() {
+      me->Go();
+    });
+    epoll.Add(acceptor.GetSocket(), &callback);
+    for (;;) {
+        TSocket socket = acceptor.Accept();
+        socket.Write("Hello, world!");
+    }
+  });
+  coroutine.Go();
+  for (;;) {
+    epoll.Wait();
+  }
 }

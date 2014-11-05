@@ -13,7 +13,7 @@ class TCoroutine;
 __thread TCoroutine* ActiveCoroutine = nullptr;
 class TCoroutine {
   friend void Yield();
-  typedef std::function<void()> TFunction;
+  typedef std::function<void(TCoroutine*)> TFunction;
 
   TFunction Function;
   bool Started;
@@ -29,7 +29,7 @@ class TCoroutine {
   static void Wrapper(intptr_t pointer) {
     TCoroutine* coroutine = reinterpret_cast<TCoroutine*>(pointer);
     coroutine->Started = true;
-    coroutine->Function();
+    coroutine->Function(coroutine);
     coroutine->Started = false;
     coroutine->Yield();
   }

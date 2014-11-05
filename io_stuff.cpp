@@ -1,6 +1,5 @@
 #include "io_stuff.h"
 
-#include <string.h>
 #include <iostream>
 
 TEpoll::TEpoll()
@@ -9,16 +8,27 @@ TEpoll::TEpoll()
   assert(Handle != -1);
 }
 
-void TEpoll::Wait() {
-  size_t readyCount = epoll_wait(Handle, Events, MAX_EVENT, -1);
+void TEpoll::Add(int Socket, TCallback* callback) {
+  assert(callback);
+  epoll_event ev = {0, {0}};
+  ev.events = EPOLLIN | EPOLLET;
+  ev.data.ptr = callback;
+  assert(epoll_ctl(Handle, EPOLL_CTL_ADD, Socket, &ev) != -1);
 }
 
-void TEpoll::Add(const TAcceptor& acceptor) {
-  epoll_event ev;
-  memset(&ev, 0, sizeof(ev));
-  ev.events = EPOLLIN;
-  ev.data.fd = acceptor.GetSocket();
-  assert(epoll_ctl(Handle, EPOLL_CTL_ADD, ev.data.fd, &ev) != -1);
+void TEpoll::Remove(int Socket) {
+  epoll_event ev = {0, {0}};
+  assert(epoll_ctl(Handle, EPOLL_CTL_DEL, Socket, &ev) != -1);
+}
+
+void TEpoll::Wait() {
+  size_t readyCount = epoll_wait(Handle, Events, MAX_EVENT, -1);
+  for (size_t i = 0; i < readyCount; ++i) {
+    TCallback* callback = static_cast<TCallback*>(Events[i].data.ptr);
+    if (callback) {
+      (*callback)();
+    }
+  }
 }
 
 TEpoll::~TEpoll() {
@@ -64,7 +74,6 @@ TAcceptor::~TAcceptor() {
 
 TSocket::TSocket(int d) : Socket(d) {
   assert(Socket != -1);
-  std::cout << Socket << std::endl;
 }
 
 size_t TSocket::Write(const std::string& string) {
@@ -73,4 +82,7 @@ size_t TSocket::Write(const std::string& string) {
 
 TSocket::~TSocket() {
   close(Socket);
+}
+
+void TScheduler::Schedule() {
 }

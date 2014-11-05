@@ -15,9 +15,24 @@
 #include <fcntl.h>
 
 #include <string>
+#include <string.h>
 #include <stdexcept>
+#include <iostream>
+#include <functional>
 
 class TWouldBlockException : std::exception {
+};
+
+class TCallback {
+  typedef std::function<void()> THandler;
+  THandler Handler;
+public:
+  TCallback(THandler handler)
+  : Handler(handler) {}
+  
+  void operator()() {
+    Handler();
+  }
 };
 
 class TSocket {
@@ -30,14 +45,18 @@ class TSocket {
 };
 
 class TAcceptor;
+
 class TEpoll {
   int Handle;
   const static size_t MAX_EVENT = 10;
   epoll_event Events[MAX_EVENT];
 public:
   TEpoll();
+
+  void Add(int Socket, TCallback* callback);
+  void Remove(int Socket);
   void Wait();
-  void Add(const TAcceptor& acceptor);
+
   ~TEpoll();
 };
 
