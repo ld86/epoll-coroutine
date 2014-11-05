@@ -1,6 +1,7 @@
 #include "io_stuff.h"
 
 #include <string.h>
+#include <iostream>
 
 TEpoll::TEpoll()
 : Handle(epoll_create(1))
@@ -10,6 +11,14 @@ TEpoll::TEpoll()
 
 void TEpoll::Wait() {
   size_t readyCount = epoll_wait(Handle, Events, MAX_EVENT, -1);
+}
+
+void TEpoll::Add(const TAcceptor& acceptor) {
+  epoll_event ev;
+  memset(&ev, 0, sizeof(ev));
+  ev.events = EPOLLIN;
+  ev.data.fd = acceptor.GetSocket();
+  assert(epoll_ctl(Handle, EPOLL_CTL_ADD, ev.data.fd, &ev) != -1);
 }
 
 TEpoll::~TEpoll() {
@@ -38,7 +47,15 @@ TAcceptor::TAcceptor(int port) {
 }
 
 TSocket TAcceptor::Accept() {
-  return TSocket(accept(Socket, nullptr, 0));
+  int socket = accept(Socket, nullptr, 0);
+  if (socket == -1 && (errno == EAGAIN || errno == EWOULDBLOCK)) {
+    throw TWouldBlockException();
+  }
+  return TSocket(socket);
+}
+
+int TAcceptor::GetSocket() const {
+  return Socket;
 }
 
 TAcceptor::~TAcceptor() {
@@ -47,6 +64,7 @@ TAcceptor::~TAcceptor() {
 
 TSocket::TSocket(int d) : Socket(d) {
   assert(Socket != -1);
+  std::cout << Socket << std::endl;
 }
 
 size_t TSocket::Write(const std::string& string) {
@@ -55,8 +73,4 @@ size_t TSocket::Write(const std::string& string) {
 
 TSocket::~TSocket() {
   close(Socket);
-}
-
-void TScheduler::Schedule() {
-  Epoll.Wait();
 }

@@ -15,15 +15,21 @@
 #include <fcntl.h>
 
 #include <string>
+#include <stdexcept>
+
+class TWouldBlockException : std::exception {
+};
 
 class TSocket {
     int Socket;
   public:
     explicit TSocket(int d);
     size_t Write(const std::string& string);
+    int GetSocket() const;
     ~TSocket();
 };
 
+class TAcceptor;
 class TEpoll {
   int Handle;
   const static size_t MAX_EVENT = 10;
@@ -31,6 +37,7 @@ class TEpoll {
 public:
   TEpoll();
   void Wait();
+  void Add(const TAcceptor& acceptor);
   ~TEpoll();
 };
 
@@ -40,6 +47,7 @@ class TAcceptor {
   public:
     explicit TAcceptor(int port);
     TSocket Accept();
+    int GetSocket() const;
     ~TAcceptor();
 };
 
